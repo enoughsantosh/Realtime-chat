@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-time Chat</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+    #chat-container { flex-grow: 1; padding: 10px; overflow-y: auto; }
+    #message-input { display: flex; padding: 10px; border-top: 1px solid #ccc; }
+    #message-input input[type="text"] { flex-grow: 1; padding: 8px; border: 1px solid #ccc; }
+    #message-input button { padding: 8px 15px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    #username-input { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border: 1px solid #ccc; display: none; }
+    .message { margin-bottom: 5px; padding: 5px; border: 1px solid #eee; }
+    .reply-section {margin-left: 20px; border-left: 2px solid grey; padding-left: 5px;}
+    .reply-button{padding: 3px; background-color: lightblue; border: none; cursor: pointer; font-size: 10px;}
+    #replyInput{display: none;}
+  </style>
+</head>
+<body>
+  <div id="username-input">
+    <label for="username">Enter your name:</label>
+    <input type="text" id="username">
+    <button id="set-username">Set Username</button>
+  </div>
+  <div id="chat-container"></div>
+  <div id="message-input">
+    <input type="text" id="message">
+    <button id="send">Send</button>
+  </div>
+  <div id="replyInput">
+    <input type="text" id="replyMessage">
+    <button id="sendReply">Reply</button>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const chatContainer = document.getElementById('chat-container');
+    const messageInput = document.getElementById('message');
+    const sendButton = document.getElementById('send');
+    const usernameInput = document.getElementById('username');
+    const setUsernameButton = document.getElementById('set-username');
+    const usernameDiv = document.getElementById('username-input');
+    const replyInput = document.getElementById('replyInput');
+    const replyMessage = document.getElementById('replyMessage');
+    const sendReply = document.getElementById('sendReply');
+    let currentReplyMessageId;
+
+    usernameDiv.style.display = 'block';
+
+    setUsernameButton.addEventListener('click', () => {
+      const username = usernameInput.value;
+      if (username) {
+        socket.emit('set username', username);
+        usernameDiv.style.display = 'none';
+      }
+    });
+
+    sendButton.addEventListener('click', () => {
+      const message = messageInput.value;
+      if (message) {
+        socket.emit('chat message', message);
+        messageInput.value = '';
+      }
+    });
+
+    socket.on('chat message', (data) => {
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('message');
+      messageDiv.innerHTML = `<strong>${data.username}:</strong> ${data.message} <button class="reply-button" data-message-id="${data.timestamp}">Reply</button>`;
+      chatContainer.appendChild(messageDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      messageDiv.querySelector('.reply-button').addEventListener('click', (event) => {
+        currentReplyMessageId = event.target.dataset.messageId;
+        replyInput.style.display = "block";
+      });
+
+    });
+
+    sendReply.addEventListener('click', ()=>{
+      const replyText = replyMessage.value;
+      if(replyText){
+        socket.emit('reply',{originalMessageId: currentReplyMessageId, reply: replyText});
+        replyInput.style.display = "none";
+        replyMessage.value = "";
+      }
+    });
+
+    socket.on('reply', (replyData)=>{
+      const originalMessage = document.querySelector(`[data-message-id="${replyData.originalMessageId}"]`).parentElement;
+      const replyDiv = document.createElement('div');
+      replyDiv.classList.add('reply-section');
+      replyDiv.innerHTML = `<strong>Reply:</strong> ${replyData.reply}`;
+      originalMessage.appendChild(replyDiv);
+    });
+
+    socket.on('user joined', (message) => {
+      const joinDiv = document.createElement('div');
+      joinDiv.textContent = message;
+      chatContainer.appendChild(joinDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+
+    socket.on('user left', (message) => {
+      const leaveDiv = document.createElement('div');
+      leaveDiv.textContent = message;
+      chatContainer.appendChild(leaveDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+
+  </script>
+</body>
+</html>
