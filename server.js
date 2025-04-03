@@ -13,13 +13,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "chat")));
 
-// Socket.io setup
 const io = new Server(server, {
-    cors: {
-        origin: "*", // Allow any frontend
-        methods: ["GET", "POST"]
-    }
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  },
+  transports: ['websocket', 'polling'] // Important for Vercel compatibility
 });
+
 
 // Store active users and chat history
 const activeUsers = new Map(); // socket.id -> username
@@ -187,3 +188,8 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
+// Export the server for Vercel
+module.exports = server;
+
+
